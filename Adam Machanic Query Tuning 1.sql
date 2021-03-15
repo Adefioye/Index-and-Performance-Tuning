@@ -125,3 +125,12 @@ clustered index. The main difference is that a leaf row in a nonclustered index 
 only the index key columns and a row locator. The content of the row locator depends on 
 whether the underlying table is organized as a heap or as B-tree.
 */
+
+/*
+	NON-CLUSTERED INDEXES
+
+A nonclustered index is also structured as a B-tree and in many respects is similar to a 
+clustered index. The main difference is that a leaf row in a nonclustered index contains
+only the index key columns and a row locator. The content of the row locator depends on 
+whether the underlying table is organized as a heap or as B-tree.
+*/
