@@ -305,3 +305,26 @@ WHERE orderid =
 	(SELECT MAX(orderid)
 	FROM dbo.Orders AS O2
 	WHERE O2.orderdate = O1.orderdate);
+
+
+/*
+	STORAGE ENGINE TREATMENT OF SCANS
+
+"Storage engine" follows the instruction of "relational engine" to perform scan. The brain of
+SQL Server is the relational engine while the muscle of the SQL Server is the storage engine.
+
+	ALLOCATION ORDER SCAN VS INDEX ORDER SCAN
+
+When the plan shows a Table Order Scan, the storage engine has only one option: the use of an
+allocation order scan. When the plan shows an Index Scan operator(clustered or nonclustered),
+with the property Ordered: True, the storage engine can use only an index order scan.
+
+When the plan shows an Index Scan operator with Ordered: False, the relational engine does not 
+care about the order of the rows returned. In this case, there are two options: allocation 
+order scan and index order scan. It is up to the storage engine to determine which to employ.
+Unfortunately, the storage engines choice is not indicated in the execution plan or anywhere
+else. It is important to note that what the plan shows is the relational engine's instructions
+and not what the storage engine did.
+
+
+*/
