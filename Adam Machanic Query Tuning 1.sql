@@ -124,13 +124,184 @@ A nonclustered index is also structured as a B-tree and in many respects is simi
 clustered index. The main difference is that a leaf row in a nonclustered index contains
 only the index key columns and a row locator. The content of the row locator depends on 
 whether the underlying table is organized as a heap or as B-tree.
+
+For a heap, the leaf index has index key column and a row locator(RID for short) that points
+to the actual data row. 
+
+For a B-tree, however, the leaf index has index key column and a clustering key(values of the
+clustered index keys from the row being pointed to and the uniquifier)
 */
 
 /*
-	NON-CLUSTERED INDEXES
+	TOOLS TO MEASURE QUERY PERFORMANCE
 
-A nonclustered index is also structured as a B-tree and in many respects is similar to a 
-clustered index. The main difference is that a leaf row in a nonclustered index contains
-only the index key columns and a row locator. The content of the row locator depends on 
-whether the underlying table is organized as a heap or as B-tree.
+SQL Server gives a number of tools to measure performance. Nevertheless, the most important 
+thing is the user experience. The user mainly cares about 2 things: response time and 
+throughput. Response time is the time it takes the first row to return while the throughput
+is the time it takes the query to complete.
+
+Performance measures that are of most interest to developers are number of reads, , CPU time
+and elapsed time.
 */
+
+SET NOCOUNT ON;
+USE PerformanceV3;
+
+/*
+CHECKPOINT;
+DBCC DROPCLEANBUFFERS;
+*/
+CHECKPOINT;
+DBCC DROPCLEANBUFFERS;
+
+/*
+3 main built-in tools are used to analyze and measure query performance:
+a graphical execution plan, STATISTICS IO and STATISTICS TIME session option, Extended Events
+session with statement completed events.
+
+Graphical execution plan is mainly used to analyze the plan used by the optimizer for a 
+query, Session options is needed to measure the performance of a single query. Finally,
+Extended Events session is needed to measure the performance of a large number of queries.
+
+*/
+
+SELECT orderid, custid, empid, shipperid, orderdate, filler
+FROM dbo.Orders
+WHERE orderid <= 10000;
+
+-- To measure query performance with session option
+
+SET STATISTICS IO, TIME ON;
+
+-- To measure performance using extended events session
+
+CREATE EVENT SESSION query_performance ON SERVER 
+ADD EVENT sqlserver.sql_statement_completed(WHERE (sqlserver.session_id=(51)));
+
+ALTER EVENT SESSION query_performance ON SERVER STATE = START;
+-- replace the above with your session ID
+
+/*
+	ACCESS METHODS
+*/
+
+/*
+	TABLE SCAN/UNORDERED CLUSTERED INDEX SCAN
+
+Table scan typically happens when the SQL Server scans all pages in a table especially when
+the underlyinf table is a heap.
+
+Unordered clustered index scan happens when SQL server scans all pages in a table when the
+underlying table is a B-tree.
+
+table scan / unordered clustered index scan occur when all data rows are to be fetched or
+when a subset of rows are to fetched from a table without proper indexing on the filter.
+
+
+*/
+
+-- The following codes are for tablescan/unordered clustered index scan
+
+-- Create Orders2 table
+
+DROP TABLE IF EXISTS dbo.Orders2;
+
+SELECT * INTO dbo.Orders2 FROM dbo.Orders;
+
+-- Create a nonclustered index on dbo.Orders2
+ALTER TABLE dbo.Orders2 ADD CONSTRAINT PK_Orders2 PRIMARY KEY NONCLUSTERED(orderid)
+
+SET STATISTICS IO, TIME ON;
+
+-- Query on a heap
+
+SELECT orderid, custid, empid, shipperid, orderdate, filler
+FROM dbo.Orders2;
+/*
+dbo.Orders2 is a heap because it has no clustered index.
+
+The logical operation for the access method in the above query is a table scan and the physical
+operation is a heap scan which makes use of an allocation scan order using IAM pages
+*/
+
+-- Query on a B-tree
+
+
+SELECT orderid, custid, empid, shipperid, orderdate, filler
+FROM dbo.Orders;
+/*
+dbo.Orders is a nonclustered index table because it has a primary key which by default is enforced
+using a clustered index.
+
+The logical operation is a table scan because all rows are fetched. However, the physical 
+operation is a clustered index scan.
+
+The fact that Order is not needed in fetching the data rows leave the storage engine to 
+determine either of 2 scans-- Index order scan(scan on the leaf of index following a linked
+list) or allocation scan order(scan based on IAM pages). The choice between these 2 is gonna be 
+based on performance or data consistency.
+*/
+
+/*
+	UNORDERED COVERING NON-CLUSTERED INDEX SCAN
+
+Unordered covering nonclustered index is similar to unordered clustered index. The "covering"
+concept is specific to query. That is, when all columns in a query is are specified in an
+index. 
+
+In an unordered covering nonclustered index, the leaf pages are fewer than in an unordered
+clustered index scan because it contains fewer data rows.
+
+
+*/
+
+--  The followings are code used for exploring covering unordered/ nonclustered index scan
+
+SELECT orderid
+FROM dbo.Orders;
+
+SELECT orderid, orderdate
+FROM dbo.Orders;
+
+/*
+	ORDERED CLUSTERED INDEX SCAN
+
+Ordered clustered index scan is a full scan of the leaf level of an index. It guarantees
+that the data given to the next operator is index ordered.
+
+*/
+
+--
+
+SELECT orderid, custid, empid, shipperid, orderdate, filler
+FROM dbo.Orders
+ORDER BY orderdate;
+
+/*
+	ORDERED COVERING NONCLUSTERED INDEX SCAN
+
+Ordered covering nonclustered index scan is similar to ordered clustered index scan.  The 
+difference ui that the former is performed on a nonclustered index.
+*/
+
+-- The following code shows scan using ordered covering nonclustered index
+
+SELECT orderid, orderdate
+FROM dbo.Orders
+ORDER BY orderid;
+
+/*
+An ordered index scan is used not only when you explicitly request the
+data sorted, but also when the plan uses an operator that can benefit from
+sorted input data. This can be the case when processing GROUP BY,
+DISTINCT, joins, and other requests. This can also happen in the following query:
+*/
+
+-- Example of ordered covering nonclustered index scan
+
+SELECT orderid, custid, empid, orderdate
+FROM dbo.Orders AS O1
+WHERE orderid =
+	(SELECT MAX(orderid)
+	FROM dbo.Orders AS O2
+	WHERE O2.orderdate = O1.orderdate);
