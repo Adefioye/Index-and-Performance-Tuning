@@ -326,5 +326,15 @@ Unfortunately, the storage engines choice is not indicated in the execution plan
 else. It is important to note that what the plan shows is the relational engine's instructions
 and not what the storage engine did.
 
+In short, allocation order scan can return multiple occurrences of rows and skip rows
+resulting from splits that take place during the scan. A split can take place because of an insert 
+of new row, an update of index key causing the row to move, or an update of a variable-length
+column causing the row to expand. Remember thta splits take place only in indexes; heaps do not
+incur splits. Therefore such phenomena cannot happen in heaps.
 
+An index order scan, however, wont read multiple occurences of the same rows because of splits.
+Remember that an index order scan follows the index linked list in order. IF a page that it has 
+not yet reached splits, the scan ends up reading both pages; therefore, it wont split rows.
+If a page that the scan already passed splits, the scan doesn't read the new one; therefore,
+it won't return multiple occurences of rows.
 */
