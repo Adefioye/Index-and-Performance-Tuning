@@ -68,10 +68,12 @@ GO
 
 SET STATISTICS IO ON
 GO
+
 -- Sample Query
 SELECT SalesOrderID, SalesOrderDetailID, ProductID, OrderQty
 FROM MySalesOrderDetail
 GO
+
 -- Sample Query with Where clause
 SELECT SalesOrderID, SalesOrderDetailID, ProductID, OrderQty
 FROM MySalesOrderDetail
@@ -124,7 +126,7 @@ ON MySalesOrderDetail
 ([ProductID],[OrderQty],[SpecialOfferID])
 GO
 
--- Sample Query
+-- Sample Query (check again)
 SELECT	SalesOrderID, SalesOrderDetailID, 
 		ProductID, OrderQty,
 		SpecialOfferID
